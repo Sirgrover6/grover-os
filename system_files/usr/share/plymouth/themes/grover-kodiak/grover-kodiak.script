@@ -1,5 +1,8 @@
 // Grover OS — Kodiak boot screen
-// Black screen. The bear rises and fades in. Title follows. The eye pulses blue.
+// 1. Black screen. The bear's blue eye ignites and builds.
+// 2. The bear rises out of the dark around the eye.
+// 3. GROVER KODIAK fades in. The eye keeps pulsing until the desktop loads.
+// Timing runs on the real clock, so it plays the same at 60 Hz or 240 Hz.
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
@@ -8,8 +11,16 @@ sw = Window.GetWidth();
 sh = Window.GetHeight();
 
 fun clamp01(v) { if (v < 0) return 0; if (v > 1) return 1; return v; }
+fun ease(v) { v = clamp01(v); return 1 - (1 - v) * (1 - v); }
+fun smooth(v) { v = clamp01(v); return v * v * (3 - 2 * v); }
 
-// ---- bear ----
+// ---------- timeline (seconds) ----------
+EYE_START   = 0.0;   EYE_LEN   = 1.6;   // eye ignites
+BEAR_START  = 1.2;   BEAR_LEN  = 2.2;   // bear rises in around it
+TITLE_START = 3.0;   TITLE_LEN = 1.0;   // title fades in
+PULSE_START = 3.2;                      // eye settles into a slow pulse
+
+// ---------- bear ----------
 bear_src = Image("bear.png");
 bw = sw * 0.55;
 bh = bw * bear_src.GetHeight() / bear_src.GetWidth();
@@ -18,21 +29,29 @@ s = bw / bear_src.GetWidth();
 bear = Sprite(bear_src.Scale(bw, bh));
 bx = (sw - bw) / 2;
 by = sh * 0.40 - bh / 2;
+RISE = sh * 0.04;
 bear.SetX(bx);
-bear.SetY(by + 40);
+bear.SetY(by + RISE);
 bear.SetZ(10);
 bear.SetOpacity(0);
 
-// ---- eye glow ----
+// ---------- eye ----------
+EYE_X = 380;
+EYE_Y = 280;
 glow_src = Image("glow.png");
-gs = 160 * s * 1.0;
-glow = Sprite(glow_src.Scale(gs, gs));
-glow.SetX(bx + 380 * s - gs / 2);
-glow.SetY(by + 280 * s - gs / 2);
+gmax = 200 * s * 2.0;
+glow = Sprite(glow_src.Scale(gmax, gmax));
 glow.SetZ(20);
 glow.SetOpacity(0);
+fun place_eye(size, yoff)
+{
+    glow.SetImage(glow_src.Scale(size, size));
+    glow.SetX(bx + EYE_X * s - size / 2);
+    glow.SetY(by + yoff + EYE_Y * s - size / 2);
+}
+place_eye(gmax * 0.3, RISE);
 
-// ---- title ----
+// ---------- title ----------
 title_src = Image("title.png");
 tw = bw * 0.62;
 th = tw * title_src.GetHeight() / title_src.GetWidth();
@@ -51,29 +70,65 @@ sub.SetY(by + bh + sh * 0.02 + th);
 sub.SetZ(10);
 sub.SetOpacity(0);
 
-// ---- animation (refresh runs about 50 times a second) ----
-t = 0;
+// ---------- clock ----------
+// The screen redraws at the monitor's refresh rate (240 a second on the Kodiak,
+// 60 on most screens), so counting redraws alone runs too fast on fast monitors.
+// Plymouth reports real elapsed time through the boot-progress callback.
+// Each report measures how many redraws happened per real second, and
+// between reports we count redraws at that measured rate.
+start_time = -1;
+base_time = 0;
+last_dur = -1;
+ticks = 0;
+rate = 240;           // first guess, corrected after the first report
+shown = 0;            // time never runs backwards on screen
+fun progress_callback(duration, progress)
+{
+    if (start_time < 0) start_time = duration;
+    if (last_dur >= 0 && duration > last_dur && ticks > 0)
+    {
+        r = ticks / (duration - last_dur);
+        if (r >= 20 && r <= 400) rate = r;
+    }
+    last_dur = duration;
+    base_time = duration - start_time;
+    ticks = 0;
+}
+Plymouth.SetBootProgressFunction(progress_callback);
+
+last_size = -1;
 fun refresh_callback()
 {
-    t++;
-    a = clamp01((t - 20) / 100);           // bear: 0.4s delay, 2s fade
-    e = 1 - (1 - a) * (1 - a);             // ease out
-    bear.SetOpacity(e);
-    bear.SetY(by + 40 * (1 - e));
+    ticks++;
+    now = base_time + ticks / rate;
+    if (now < shown) now = shown;
+    shown = now;
 
-    ta = clamp01((t - 100) / 50);          // title: starts at 2s, 1s fade
+    // 1. eye ignites: grows from a spark to full glow
+    e = smooth((now - EYE_START) / EYE_LEN);
+    // 2. bear rises in
+    b = ease((now - BEAR_START) / BEAR_LEN);
+    yoff = RISE * (1 - b);
+    bear.SetOpacity(b);
+    bear.SetY(by + yoff);
+
+    // 3. after the build, the eye breathes
+    p = 1;
+    if (now > PULSE_START)
+        p = 0.6 + 0.4 * (Math.Sin((now - PULSE_START) * 2.4 + 1.5708) + 1) / 2;
+
+    size = gmax * (0.3 + 0.7 * e);
+    if (size != last_size || b < 1) { place_eye(size, yoff); last_size = size; }
+    glow.SetOpacity(e * p);
+
+    // 4. title
+    ta = smooth((now - TITLE_START) / TITLE_LEN);
     title.SetOpacity(ta);
     sub.SetOpacity(ta * 0.9);
-
-    if (t > 120)                           // eye: pulse once the bear is up
-    {
-        p = (Math.Sin((t - 120) / 18) + 1) / 2;
-        glow.SetOpacity(clamp01((t - 120) / 25) * (0.35 + 0.65 * p));
-    }
 }
 Plymouth.SetRefreshFunction(refresh_callback);
 
-// ---- password prompt (only shows if the disk is encrypted) ----
+// ---------- password prompt (only if the disk is encrypted) ----------
 prompt = NULL;
 bullets = NULL;
 fun display_password_callback(text, count)
@@ -93,7 +148,7 @@ fun display_normal_callback() { prompt = NULL; bullets = NULL; }
 Plymouth.SetDisplayPasswordFunction(display_password_callback);
 Plymouth.SetDisplayNormalFunction(display_normal_callback);
 
-// ---- messages ----
+// ---------- messages ----------
 msg = NULL;
 fun message_callback(text)
 {
