@@ -16,13 +16,14 @@ fun smooth(v) { v = clamp01(v); return v * v * (3 - 2 * v); }
 
 // ---------- timeline (seconds) ----------
 // HOLD covers the black gap while the monitor switches modes and re-syncs.
-// Measured on the Kodiak (240 Hz): the screen shows nothing for about
-// 1.3 s after the boot screen starts, then gives us about 4 s.
+// Measured on the Kodiak (240 Hz): nothing shows for about 1.3 s after the
+// boot screen starts. plymouth-quit is held 3 s (see the systemd drop-in)
+// so the full sequence plays: about 7 s on screen.
 HOLD        = 1.4;
-EYE_START   = HOLD;        EYE_LEN   = 1.2;   // eye ignites
-BEAR_START  = HOLD + 0.8;  BEAR_LEN  = 1.6;   // bear rises in around it
-TITLE_START = HOLD + 2.2;  TITLE_LEN = 0.8;   // title fades in
-PULSE_START = HOLD + 2.6;                     // eye settles into a slow pulse
+EYE_START   = HOLD;        EYE_LEN   = 2.0;   // eye ignites slowly, alone in the dark
+BEAR_START  = HOLD + 1.6;  BEAR_LEN  = 2.0;   // bear rises in around it
+TITLE_START = HOLD + 3.2;  TITLE_LEN = 1.0;   // title fades in
+PULSE_START = HOLD + 3.6;                     // eye settles into a slow pulse
 
 // ---------- bear ----------
 bear_src = Image("bear.png");
