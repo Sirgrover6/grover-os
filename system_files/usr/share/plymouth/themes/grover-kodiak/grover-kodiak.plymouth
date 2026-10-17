@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Grover Kodiak
+Description=Grover OS boot screen: the Kodiak bear rises out of the dark.
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/grover-kodiak
+ScriptFile=/usr/share/plymouth/themes/grover-kodiak/grover-kodiak.script

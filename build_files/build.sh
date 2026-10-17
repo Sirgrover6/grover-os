@@ -25,3 +25,14 @@ dnf5 install -y tmux
 #### Example for enabling a System Unit File
 
 systemctl enable podman.socket
+
+### Grover boot screen (Plymouth)
+## Theme files come in from system_files/usr/share/plymouth/themes/grover-kodiak
+## and system_files/etc/plymouth/plymouthd.conf picks it.
+dnf5 install -y plymouth-plugin-script
+
+## Rebuild the boot image (initramfs) so the new boot screen is inside it.
+KVER="$(ls /usr/lib/modules | sort -V | tail -n 1)"
+export DRACUT_NO_XATTR=1
+dracut --no-hostonly --kver "$KVER" --reproducible --zstd -v --add ostree -f "/usr/lib/modules/$KVER/initramfs.img"
+chmod 0600 "/usr/lib/modules/$KVER/initramfs.img"

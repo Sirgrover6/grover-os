@@ -1,0 +1,105 @@
+// Grover OS — Kodiak boot screen
+// Black screen. The bear rises and fades in. Title follows. The eye pulses blue.
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+
+fun clamp01(v) { if (v < 0) return 0; if (v > 1) return 1; return v; }
+
+// ---- bear ----
+bear_src = Image("bear.png");
+bw = sw * 0.55;
+bh = bw * bear_src.GetHeight() / bear_src.GetWidth();
+if (bh > sh * 0.55) { bh = sh * 0.55; bw = bh * bear_src.GetWidth() / bear_src.GetHeight(); }
+s = bw / bear_src.GetWidth();
+bear = Sprite(bear_src.Scale(bw, bh));
+bx = (sw - bw) / 2;
+by = sh * 0.40 - bh / 2;
+bear.SetX(bx);
+bear.SetY(by + 40);
+bear.SetZ(10);
+bear.SetOpacity(0);
+
+// ---- eye glow ----
+glow_src = Image("glow.png");
+gs = 160 * s * 1.0;
+glow = Sprite(glow_src.Scale(gs, gs));
+glow.SetX(bx + 380 * s - gs / 2);
+glow.SetY(by + 280 * s - gs / 2);
+glow.SetZ(20);
+glow.SetOpacity(0);
+
+// ---- title ----
+title_src = Image("title.png");
+tw = bw * 0.62;
+th = tw * title_src.GetHeight() / title_src.GetWidth();
+title = Sprite(title_src.Scale(tw, th));
+title.SetX((sw - tw) / 2);
+title.SetY(by + bh + sh * 0.02);
+title.SetZ(10);
+title.SetOpacity(0);
+
+sub_src = Image("subtitle.png");
+uw = tw * 0.45;
+uh = uw * sub_src.GetHeight() / sub_src.GetWidth();
+sub = Sprite(sub_src.Scale(uw, uh));
+sub.SetX((sw - uw) / 2);
+sub.SetY(by + bh + sh * 0.02 + th);
+sub.SetZ(10);
+sub.SetOpacity(0);
+
+// ---- animation (refresh runs about 50 times a second) ----
+t = 0;
+fun refresh_callback()
+{
+    t++;
+    a = clamp01((t - 20) / 100);           // bear: 0.4s delay, 2s fade
+    e = 1 - (1 - a) * (1 - a);             // ease out
+    bear.SetOpacity(e);
+    bear.SetY(by + 40 * (1 - e));
+
+    ta = clamp01((t - 100) / 50);          // title: starts at 2s, 1s fade
+    title.SetOpacity(ta);
+    sub.SetOpacity(ta * 0.9);
+
+    if (t > 120)                           // eye: pulse once the bear is up
+    {
+        p = (Math.Sin((t - 120) / 18) + 1) / 2;
+        glow.SetOpacity(clamp01((t - 120) / 25) * (0.35 + 0.65 * p));
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+// ---- password prompt (only shows if the disk is encrypted) ----
+prompt = NULL;
+bullets = NULL;
+fun display_password_callback(text, count)
+{
+    prompt = Sprite(Image.Text(text, 1, 1, 1));
+    prompt.SetX((sw - prompt.GetImage().GetWidth()) / 2);
+    prompt.SetY(sh * 0.86);
+    prompt.SetZ(30);
+    stars = "";
+    for (i = 0; i < count; i++) stars += "* ";
+    bullets = Sprite(Image.Text(stars, 0.23, 0.61, 1));
+    bullets.SetX((sw - bullets.GetImage().GetWidth()) / 2);
+    bullets.SetY(sh * 0.86 + 30);
+    bullets.SetZ(30);
+}
+fun display_normal_callback() { prompt = NULL; bullets = NULL; }
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+
+// ---- messages ----
+msg = NULL;
+fun message_callback(text)
+{
+    msg = Sprite(Image.Text(text, 0.6, 0.6, 0.6));
+    msg.SetX((sw - msg.GetImage().GetWidth()) / 2);
+    msg.SetY(sh * 0.94);
+    msg.SetZ(30);
+}
+Plymouth.SetMessageFunction(message_callback);
