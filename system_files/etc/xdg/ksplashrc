@@ -1,0 +1,4 @@
+# Grover OS: desktop loading screen
+[KSplash]
+Engine=KSplashQML
+Theme=com.grover.kodiak.desktop

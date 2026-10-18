@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [ { "Name": "Grover OS" } ],
+        "Description": "Grover OS Kodiak desktop loading screen",
+        "Id": "com.grover.kodiak.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Grover Kodiak",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}
